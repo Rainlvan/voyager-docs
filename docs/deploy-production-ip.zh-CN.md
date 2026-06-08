@@ -34,7 +34,60 @@ ssh root@你的服务器公网IP
 
 如果不是 root 用户，就用你服务器实际的用户名。
 
-## 3. 安装 Docker
+## 3. 推荐方式：一键部署脚本
+
+服务器执行下面命令：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Rainlvan/voyager-docs/main/deploy/install.sh -o voyager-install.sh
+chmod +x voyager-install.sh
+./voyager-install.sh
+```
+
+脚本会自动完成：
+
+1. 检查并安装基础工具。
+2. 检测 Docker 和 Docker Compose 是否已安装。
+3. 询问是否使用现有 Docker，或自动安装 Docker。
+4. 询问是否配置 Docker 镜像源 `https://docker.1ms.run`。
+5. 配置 OpenSearch 需要的系统参数。
+6. 拉取 GitHub 仓库到 `/opt/voyager/repo`。
+7. 自动生成 `/opt/voyager/repo/.env`，里面包含随机数据库密码、MinIO 密码、JWT 密钥和加密密钥。
+8. 拉取 GHCR 镜像并启动系统。
+
+脚本执行过程中会出现两个选择：
+
+```text
+Use the existing Docker installation? [Y/n]
+Configure Docker registry mirror (https://docker.1ms.run)? [Y/n]
+```
+
+如果服务器已经安装好 Docker，就选择 `Y`。
+
+如果服务器已经有稳定镜像源，第二个可以选择 `n`；如果没有，就选择 `Y`。
+
+脚本执行完成后访问：
+
+```text
+http://你的服务器公网IP
+```
+
+初始账号：
+
+```text
+管理员：admin / 12345678
+普通员工：employee / 12345678
+```
+
+首次登录后建议立刻做三件事：
+
+1. 用管理员账号登录。
+2. 修改管理员密码。
+3. 在“系统设置”里填写阿里云百炼 API Key。
+
+下面是手动部署步骤。如果已经使用一键脚本部署成功，可以不用继续执行。
+
+## 4. 手动安装 Docker
 
 在服务器执行：
 
@@ -46,7 +99,7 @@ docker compose version
 
 如果最后一行能显示 Docker Compose 版本，就说明安装成功。
 
-## 4. 配置 Docker 镜像加速
+## 5. 手动配置 Docker 镜像加速
 
 你之前提供的毫秒镜像加速地址可以这样配置：
 
@@ -60,7 +113,7 @@ JSON
 sudo systemctl restart docker
 ```
 
-## 5. 配置 OpenSearch 系统参数
+## 6. 手动配置 OpenSearch 系统参数
 
 OpenSearch 需要调大 `vm.max_map_count`：
 
@@ -69,7 +122,7 @@ echo 'vm.max_map_count=262144' | sudo tee /etc/sysctl.d/99-voyager-opensearch.co
 sudo sysctl --system
 ```
 
-## 6. 下载部署文件
+## 7. 手动下载部署文件
 
 创建部署目录并拉取项目：
 
@@ -88,7 +141,7 @@ sudo apt-get update
 sudo apt-get install -y git
 ```
 
-## 7. 创建生产环境配置
+## 8. 手动创建生产环境配置
 
 复制示例配置：
 
@@ -132,7 +185,7 @@ VOYAGER_BOOTSTRAP_EMPLOYEE_PASSWORD=12345678
 
 注意：`.env` 里是生产密钥，不能上传到 GitHub，也不要发给别人。
 
-## 8. 启动系统
+## 9. 手动启动系统
 
 拉取镜像：
 
@@ -163,7 +216,7 @@ voyager-minio
 voyager-opensearch
 ```
 
-## 9. 浏览器访问
+## 10. 浏览器访问
 
 打开：
 
@@ -184,7 +237,7 @@ http://你的服务器公网IP
 2. 修改管理员密码。
 3. 在“系统设置”里填写阿里云百炼 API Key。
 
-## 10. 基础验证
+## 11. 基础验证
 
 管理员侧：
 
@@ -202,7 +255,7 @@ http://你的服务器公网IP
 5. 测试对话找文档。
 6. 测试文档下载。
 
-## 11. 查看日志
+## 12. 查看日志
 
 查看全部容器日志：
 
@@ -222,7 +275,7 @@ docker compose --env-file .env -f docker-compose.prod.yml logs -f backend
 docker compose --env-file .env -f docker-compose.prod.yml logs -f worker
 ```
 
-## 12. 更新系统
+## 13. 更新系统
 
 以后本地修改代码并推送 GitHub 后，GitHub Actions 会重新发布镜像。
 
@@ -235,7 +288,7 @@ docker compose --env-file .env -f docker-compose.prod.yml pull
 docker compose --env-file .env -f docker-compose.prod.yml up -d --no-build
 ```
 
-## 13. 重置测试环境
+## 14. 重置测试环境
 
 如果只是测试部署，想清空所有数据重新开始，可以执行：
 
@@ -246,7 +299,7 @@ docker compose --env-file .env -f docker-compose.prod.yml up -d --no-build
 
 这会删除 PostgreSQL、MinIO、OpenSearch 和备份数据卷。正式使用后不要随便执行。
 
-## 14. 重要安全提醒
+## 15. 重要安全提醒
 
 - 当前只有公网 IP，所以先使用 HTTP。正式给员工使用时，建议绑定域名并开启 HTTPS。
 - `.env` 不要提交到 GitHub。

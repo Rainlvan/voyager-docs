@@ -8,7 +8,7 @@ on:
       - "backend/**"
       - "frontend/**"
       - "worker/**"
-      - "deploy/**"
+      - "deploy/nginx/**"
       - "docker-compose.prod.yml"
       - ".dockerignore"
       - ".github/workflows/publish-images.yml"
