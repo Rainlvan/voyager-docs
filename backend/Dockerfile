@@ -9,7 +9,7 @@ RUN mvn -q -DskipTests dependency:go-offline
 COPY backend/src ./src
 RUN mvn -q -DskipTests package
 
-FROM eclipse-temurin:17-jre-bookworm
+FROM eclipse-temurin:17-jre
 WORKDIR /app
 
 RUN apt-get update \
