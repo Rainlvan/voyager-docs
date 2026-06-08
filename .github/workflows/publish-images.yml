@@ -4,6 +4,14 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "worker/**"
+      - "deploy/**"
+      - "docker-compose.prod.yml"
+      - ".dockerignore"
+      - ".github/workflows/publish-images.yml"
   workflow_dispatch:
 
 permissions:

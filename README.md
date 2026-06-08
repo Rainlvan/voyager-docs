@@ -70,7 +70,10 @@ npm run dev
 
 生产部署使用 Docker Compose 和 GitHub Container Registry 公开镜像。公网只暴露前端 Nginx 的 `80` 端口，数据库、MinIO、OpenSearch、后端和 Worker 都在 Docker 内网。
 
-部署说明见 [docs/deploy-production-ip.md](docs/deploy-production-ip.md)。
+部署说明：
+
+- 中文步骤：[docs/deploy-production-ip.zh-CN.md](docs/deploy-production-ip.zh-CN.md)
+- English guide: [docs/deploy-production-ip.md](docs/deploy-production-ip.md)
 
 ## Data And Secrets
 
