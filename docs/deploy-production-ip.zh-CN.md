@@ -305,6 +305,21 @@ cd ~
 ./voyager-install.sh
 ```
 
+如果日志里出现：
+
+```text
+ERROR: setting [plugins.security.disabled] already set
+```
+
+说明使用的是包含重复 OpenSearch 安全配置的旧 compose 文件。更新仓库后重新启动即可：
+
+```bash
+cd /opt/voyager/repo
+git pull
+sudo docker compose --env-file .env -f docker-compose.prod.yml up -d --no-build --force-recreate opensearch
+sudo docker compose --env-file .env -f docker-compose.prod.yml up -d --no-build
+```
+
 轻量服务器上最常见原因是 OpenSearch 内存压力。当前生产配置默认使用较轻的参数：
 
 ```env
