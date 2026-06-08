@@ -290,6 +290,21 @@ cd /opt/voyager/repo
 docker logs voyager-opensearch --tail=200
 ```
 
+如果日志里出现：
+
+```text
+Password ... failed validation
+```
+
+说明旧脚本生成的 OpenSearch 初始密码不符合规则。更新仓库后重新执行一键脚本会自动修复 `.env` 里的这个值：
+
+```bash
+cd /opt/voyager/repo
+git pull
+cd ~
+./voyager-install.sh
+```
+
 轻量服务器上最常见原因是 OpenSearch 内存压力。当前生产配置默认使用较轻的参数：
 
 ```env

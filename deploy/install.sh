@@ -142,6 +142,10 @@ random_secret() {
   fi
 }
 
+random_opensearch_password() {
+  printf 'Voyager%sAa1@\n' "$(random_secret)"
+}
+
 prepare_repo() {
   local sudo_cmd="$1"
   $sudo_cmd mkdir -p "$INSTALL_ROOT"
@@ -160,6 +164,7 @@ write_env_file() {
   local env_file="$APP_DIR/.env"
   if [ -f "$env_file" ]; then
     warn "$env_file already exists. Keeping existing production secrets."
+    ensure_opensearch_password_format "$env_file"
     ensure_env_default "$env_file" "OPENSEARCH_JAVA_OPTS" "-Xms512m -Xmx512m"
     ensure_env_default "$env_file" "OPENSEARCH_MEM_LIMIT" "1536m"
     return 0
@@ -178,7 +183,7 @@ MINIO_ROOT_USER=voyager_minio
 MINIO_ROOT_PASSWORD=$(random_secret)
 MINIO_BUCKET=voyager-documents
 
-OPENSEARCH_INITIAL_ADMIN_PASSWORD=$(random_secret)
+OPENSEARCH_INITIAL_ADMIN_PASSWORD=$(random_opensearch_password)
 OPENSEARCH_DOCUMENT_INDEX=voyager-documents
 OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
 OPENSEARCH_MEM_LIMIT=1536m
@@ -196,6 +201,44 @@ VOYAGER_BOOTSTRAP_EMPLOYEE_PASSWORD=12345678
 VOYAGER_WORKER_ID=prod-worker-1
 EOF
   chmod 600 "$env_file"
+}
+
+ensure_opensearch_password_format() {
+  local env_file="$1"
+  local current
+  current="$(grep -E '^OPENSEARCH_INITIAL_ADMIN_PASSWORD=' "$env_file" | tail -n 1 | cut -d= -f2- || true)"
+  if password_matches_opensearch_rule "$current"; then
+    return 0
+  fi
+
+  local replacement
+  replacement="$(random_opensearch_password)"
+  warn "OPENSEARCH_INITIAL_ADMIN_PASSWORD does not match OpenSearch startup rules. Replacing it with a strong random value."
+  awk -v replacement="$replacement" '
+    BEGIN { done = 0 }
+    /^OPENSEARCH_INITIAL_ADMIN_PASSWORD=/ {
+      print "OPENSEARCH_INITIAL_ADMIN_PASSWORD=" replacement
+      done = 1
+      next
+    }
+    { print }
+    END {
+      if (!done) {
+        print "OPENSEARCH_INITIAL_ADMIN_PASSWORD=" replacement
+      }
+    }
+  ' "$env_file" >"${env_file}.tmp"
+  mv "${env_file}.tmp" "$env_file"
+  chmod 600 "$env_file"
+}
+
+password_matches_opensearch_rule() {
+  local value="${1:-}"
+  [ "${#value}" -ge 8 ] || return 1
+  [[ "$value" =~ [A-Z] ]] || return 1
+  [[ "$value" =~ [a-z] ]] || return 1
+  [[ "$value" =~ [0-9] ]] || return 1
+  [[ "$value" =~ [^A-Za-z0-9] ]] || return 1
 }
 
 ensure_env_default() {
