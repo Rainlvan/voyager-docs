@@ -131,7 +131,7 @@ configure_opensearch_kernel() {
   local sudo_cmd="$1"
   info "Configuring vm.max_map_count for OpenSearch..."
   echo 'vm.max_map_count=262144' | $sudo_cmd tee /etc/sysctl.d/99-voyager-opensearch.conf >/dev/null
-  $sudo_cmd sysctl --system >/dev/null
+  $sudo_cmd sysctl -w vm.max_map_count=262144 >/dev/null
 }
 
 random_secret() {
@@ -160,6 +160,8 @@ write_env_file() {
   local env_file="$APP_DIR/.env"
   if [ -f "$env_file" ]; then
     warn "$env_file already exists. Keeping existing production secrets."
+    ensure_env_default "$env_file" "OPENSEARCH_JAVA_OPTS" "-Xms512m -Xmx512m"
+    ensure_env_default "$env_file" "OPENSEARCH_MEM_LIMIT" "1536m"
     return 0
   fi
 
@@ -178,6 +180,8 @@ MINIO_BUCKET=voyager-documents
 
 OPENSEARCH_INITIAL_ADMIN_PASSWORD=$(random_secret)
 OPENSEARCH_DOCUMENT_INDEX=voyager-documents
+OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+OPENSEARCH_MEM_LIMIT=1536m
 
 VOYAGER_SECURITY_JWT_SECRET=$(random_secret)
 VOYAGER_CRYPTO_SECRET=$(random_secret)
@@ -194,12 +198,55 @@ EOF
   chmod 600 "$env_file"
 }
 
+ensure_env_default() {
+  local env_file="$1"
+  local key="$2"
+  local value="$3"
+  if ! grep -q "^${key}=" "$env_file"; then
+    info "Adding missing $key to existing .env"
+    printf '%s=%s\n' "$key" "$value" >>"$env_file"
+    chmod 600 "$env_file"
+  fi
+}
+
+show_start_failure_help() {
+  cat <<'MSG'
+
+Voyager Docs did not start completely.
+
+Most startup failures on small cloud servers are caused by OpenSearch memory pressure.
+Check the OpenSearch log first:
+
+  cd /opt/voyager/repo
+  docker logs voyager-opensearch --tail=200
+
+Then retry the service startup:
+
+  docker compose --env-file .env -f docker-compose.prod.yml up -d --no-build opensearch
+  docker compose --env-file .env -f docker-compose.prod.yml up -d --no-build
+  docker compose --env-file .env -f docker-compose.prod.yml ps
+
+If OpenSearch still exits, check available memory:
+
+  free -h
+
+MSG
+}
+
 start_services() {
   cd "$APP_DIR"
   info "Pulling Docker images from GHCR..."
   $DOCKER_CMD compose --env-file .env -f docker-compose.prod.yml pull
   info "Starting Voyager Docs..."
-  $DOCKER_CMD compose --env-file .env -f docker-compose.prod.yml up -d --no-build
+  if ! $DOCKER_CMD compose --env-file .env -f docker-compose.prod.yml up -d --no-build; then
+    warn "Docker Compose reported a startup failure."
+    $DOCKER_CMD compose --env-file .env -f docker-compose.prod.yml ps || true
+    if $DOCKER_CMD ps -a --format '{{.Names}}' | grep -q '^voyager-opensearch$'; then
+      $DOCKER_CMD logs voyager-opensearch --tail=120 || true
+    fi
+    show_start_failure_help
+    return 1
+  fi
   $DOCKER_CMD compose --env-file .env -f docker-compose.prod.yml ps
 }
 

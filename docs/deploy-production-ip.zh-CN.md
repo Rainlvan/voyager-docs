@@ -275,7 +275,54 @@ docker compose --env-file .env -f docker-compose.prod.yml logs -f backend
 docker compose --env-file .env -f docker-compose.prod.yml logs -f worker
 ```
 
-## 13. 更新系统
+## 13. OpenSearch 启动失败处理
+
+如果启动时看到类似下面的错误：
+
+```text
+dependency failed to start: container voyager-opensearch is unhealthy
+```
+
+先查看 OpenSearch 日志：
+
+```bash
+cd /opt/voyager/repo
+docker logs voyager-opensearch --tail=200
+```
+
+轻量服务器上最常见原因是 OpenSearch 内存压力。当前生产配置默认使用较轻的参数：
+
+```env
+OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+OPENSEARCH_MEM_LIMIT=1536m
+```
+
+如果你的 `.env` 是旧脚本生成的，可以补上这两行：
+
+```bash
+cd /opt/voyager/repo
+grep -q '^OPENSEARCH_JAVA_OPTS=' .env || echo 'OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m' >> .env
+grep -q '^OPENSEARCH_MEM_LIMIT=' .env || echo 'OPENSEARCH_MEM_LIMIT=1536m' >> .env
+```
+
+然后重新启动：
+
+```bash
+docker compose --env-file .env -f docker-compose.prod.yml up -d --no-build opensearch
+docker compose --env-file .env -f docker-compose.prod.yml up -d --no-build
+docker compose --env-file .env -f docker-compose.prod.yml ps
+```
+
+如果仍然失败，检查服务器内存：
+
+```bash
+free -h
+docker logs voyager-opensearch --tail=200
+```
+
+如果服务器内存只有 2GB，建议开启系统 swap 或升级到 4GB 以上内存再运行完整 RAG 服务。
+
+## 14. 更新系统
 
 以后本地修改代码并推送 GitHub 后，GitHub Actions 会重新发布镜像。
 
@@ -288,7 +335,7 @@ docker compose --env-file .env -f docker-compose.prod.yml pull
 docker compose --env-file .env -f docker-compose.prod.yml up -d --no-build
 ```
 
-## 14. 重置测试环境
+## 15. 重置测试环境
 
 如果只是测试部署，想清空所有数据重新开始，可以执行：
 
@@ -299,7 +346,7 @@ docker compose --env-file .env -f docker-compose.prod.yml up -d --no-build
 
 这会删除 PostgreSQL、MinIO、OpenSearch 和备份数据卷。正式使用后不要随便执行。
 
-## 15. 重要安全提醒
+## 16. 重要安全提醒
 
 - 当前只有公网 IP，所以先使用 HTTP。正式给员工使用时，建议绑定域名并开启 HTTPS。
 - `.env` 不要提交到 GitHub。

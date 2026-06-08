@@ -40,21 +40,18 @@ services:
     environment:
       discovery.type: single-node
       plugins.security.disabled: "true"
-      bootstrap.memory_lock: "true"
-      OPENSEARCH_JAVA_OPTS: "-Xms1g -Xmx1g"
+      bootstrap.memory_lock: "false"
+      OPENSEARCH_JAVA_OPTS: ${OPENSEARCH_JAVA_OPTS:--Xms512m -Xmx512m}
       OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_INITIAL_ADMIN_PASSWORD:?OPENSEARCH_INITIAL_ADMIN_PASSWORD is required}
     volumes:
       - opensearch-data:/usr/share/opensearch/data
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    mem_limit: 2g
+    mem_limit: ${OPENSEARCH_MEM_LIMIT:-1536m}
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:9200 >/dev/null || exit 1"]
       interval: 15s
       timeout: 10s
-      retries: 20
+      retries: 30
+      start_period: 90s
 
   backend:
     image: ghcr.io/${GHCR_OWNER:-your-github-owner}/voyager-docs-backend:${IMAGE_TAG:-latest}

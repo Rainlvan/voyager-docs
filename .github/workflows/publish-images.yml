@@ -9,7 +9,6 @@ on:
       - "frontend/**"
       - "worker/**"
       - "deploy/nginx/**"
-      - "docker-compose.prod.yml"
       - ".dockerignore"
       - ".github/workflows/publish-images.yml"
   workflow_dispatch:
