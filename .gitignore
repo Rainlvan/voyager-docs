@@ -1,0 +1,36 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Environment
+.env*
+!.env.example
+!.env.production.example
+
+# Java
+backend/target/
+backend/data/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/tsconfig.tsbuildinfo
+frontend/*.log
+frontend/src/**/*.js
+frontend/src/**/*.js.map
+
+# Python
+worker/.venv*/
+__pycache__/
+**/__pycache__/
+worker/.pytest_cache/
+
+# Runtime
+data/
+logs/
+*.log
+
+# Test artifacts and local document fixtures
+docs/qa/

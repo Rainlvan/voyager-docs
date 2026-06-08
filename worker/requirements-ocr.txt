@@ -1,0 +1,3 @@
+# rapidocr-onnxruntime currently supports Python <3.13.
+# Install this in a Python 3.12 virtual environment to enable local OCR.
+rapidocr-onnxruntime>=1.4.4

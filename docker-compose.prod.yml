@@ -1,0 +1,148 @@
+name: voyager
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: voyager-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-voyager}
+      POSTGRES_USER: ${POSTGRES_USER:-voyager}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    container_name: voyager-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-voyager_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  opensearch:
+    image: opensearchproject/opensearch:2.17.1
+    container_name: voyager-opensearch
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      plugins.security.disabled: "true"
+      bootstrap.memory_lock: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms1g -Xmx1g"
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_INITIAL_ADMIN_PASSWORD:?OPENSEARCH_INITIAL_ADMIN_PASSWORD is required}
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    mem_limit: 2g
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200 >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+
+  backend:
+    image: ghcr.io/${GHCR_OWNER:-your-github-owner}/voyager-docs-backend:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: voyager-backend
+    restart: unless-stopped
+    environment:
+      SERVER_ADDRESS: 0.0.0.0
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-voyager}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-voyager}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-voyager_minio}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+      MINIO_BUCKET: ${MINIO_BUCKET:-voyager-documents}
+      OPENSEARCH_ENDPOINT: http://opensearch:9200
+      OPENSEARCH_DOCUMENT_INDEX: ${OPENSEARCH_DOCUMENT_INDEX:-voyager-documents}
+      VOYAGER_SECURITY_JWT_SECRET: ${VOYAGER_SECURITY_JWT_SECRET:?VOYAGER_SECURITY_JWT_SECRET is required}
+      VOYAGER_CRYPTO_SECRET: ${VOYAGER_CRYPTO_SECRET:?VOYAGER_CRYPTO_SECRET is required}
+      VOYAGER_BACKUP_DIRECTORY: /app/data/backups
+      VOYAGER_BACKUP_PG_DUMP_COMMAND: pg_dump -h postgres -U ${POSTGRES_USER:-voyager} -d ${POSTGRES_DB:-voyager} -Fc
+      VOYAGER_BACKUP_PG_RESTORE_COMMAND: pg_restore -h postgres -U ${POSTGRES_USER:-voyager} -d ${POSTGRES_DB:-voyager} --clean --if-exists --no-owner
+      VOYAGER_BOOTSTRAP_ADMIN_USERNAME: ${VOYAGER_BOOTSTRAP_ADMIN_USERNAME:-admin}
+      VOYAGER_BOOTSTRAP_ADMIN_DISPLAY_NAME: ${VOYAGER_BOOTSTRAP_ADMIN_DISPLAY_NAME:-System Administrator}
+      VOYAGER_BOOTSTRAP_ADMIN_PASSWORD: ${VOYAGER_BOOTSTRAP_ADMIN_PASSWORD:-12345678}
+      VOYAGER_BOOTSTRAP_EMPLOYEE_USERNAME: ${VOYAGER_BOOTSTRAP_EMPLOYEE_USERNAME:-employee}
+      VOYAGER_BOOTSTRAP_EMPLOYEE_DISPLAY_NAME: ${VOYAGER_BOOTSTRAP_EMPLOYEE_DISPLAY_NAME:-Employee}
+      VOYAGER_BOOTSTRAP_EMPLOYEE_PASSWORD: ${VOYAGER_BOOTSTRAP_EMPLOYEE_PASSWORD:-12345678}
+    volumes:
+      - backup-data:/app/data/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:18080/actuator/health | grep -q UP"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  worker:
+    image: ghcr.io/${GHCR_OWNER:-your-github-owner}/voyager-docs-worker:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    container_name: voyager-worker
+    restart: unless-stopped
+    environment:
+      VOYAGER_POSTGRES_DSN: host=postgres port=5432 dbname=${POSTGRES_DB:-voyager} user=${POSTGRES_USER:-voyager} password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_SECURE: "false"
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-voyager_minio}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+      MINIO_BUCKET: ${MINIO_BUCKET:-voyager-documents}
+      OPENSEARCH_ENDPOINT: http://opensearch:9200
+      OPENSEARCH_DOCUMENT_INDEX: ${OPENSEARCH_DOCUMENT_INDEX:-voyager-documents}
+      VOYAGER_CRYPTO_SECRET: ${VOYAGER_CRYPTO_SECRET:?VOYAGER_CRYPTO_SECRET is required}
+      VOYAGER_WORKER_ID: ${VOYAGER_WORKER_ID:-prod-worker-1}
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  frontend:
+    image: ghcr.io/${GHCR_OWNER:-your-github-owner}/voyager-docs-frontend:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: voyager-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:
+  minio-data:
+  opensearch-data:
+  backup-data:

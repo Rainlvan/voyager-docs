@@ -1,0 +1,25 @@
+{
+  "name": "voyager-docs-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "@vitejs/plugin-vue": "^5.2.4",
+    "axios": "^1.9.0",
+    "element-plus": "^2.9.11",
+    "lucide-vue-next": "^0.511.0",
+    "pinia": "^3.0.2",
+    "vue": "^3.5.14",
+    "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vue-tsc": "^2.2.10"
+  }
+}

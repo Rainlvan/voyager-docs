@@ -1,0 +1,1 @@
+"""Voyager document ingestion worker."""

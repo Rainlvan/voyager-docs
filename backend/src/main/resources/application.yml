@@ -1,0 +1,51 @@
+server:
+  port: 18080
+  address: ${SERVER_ADDRESS:127.0.0.1}
+
+spring:
+  application:
+    name: voyager-docs-backend
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:5432/voyager}
+    username: ${SPRING_DATASOURCE_USERNAME:voyager}
+    password: ${SPRING_DATASOURCE_PASSWORD:voyager_pass}
+  flyway:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  servlet:
+    multipart:
+      max-file-size: 200MB
+      max-request-size: 220MB
+
+voyager:
+  security:
+    jwt-secret: ${VOYAGER_SECURITY_JWT_SECRET:local-dev-secret-change-me-local-dev-secret}
+    token-ttl-minutes: ${VOYAGER_SECURITY_TOKEN_TTL_MINUTES:720}
+    login-max-failures: ${VOYAGER_SECURITY_LOGIN_MAX_FAILURES:5}
+    login-window-minutes: ${VOYAGER_SECURITY_LOGIN_WINDOW_MINUTES:10}
+    login-lock-minutes: ${VOYAGER_SECURITY_LOGIN_LOCK_MINUTES:15}
+  crypto:
+    secret: ${VOYAGER_CRYPTO_SECRET:local-dev-crypto-secret-change-me}
+  minio:
+    endpoint: ${MINIO_ENDPOINT:http://127.0.0.1:9000}
+    access-key: ${MINIO_ACCESS_KEY:voyager_minio}
+    secret-key: ${MINIO_SECRET_KEY:voyager_minio_pass}
+    bucket: ${MINIO_BUCKET:voyager-documents}
+  opensearch:
+    endpoint: ${OPENSEARCH_ENDPOINT:http://127.0.0.1:19200}
+    document-index: ${OPENSEARCH_DOCUMENT_INDEX:voyager-documents}
+  backup:
+    directory: ${VOYAGER_BACKUP_DIRECTORY:./data/backups}
+    pg-dump-command: ${VOYAGER_BACKUP_PG_DUMP_COMMAND:docker exec voyager-postgres pg_dump -U voyager -d voyager -Fc}
+    pg-restore-command: ${VOYAGER_BACKUP_PG_RESTORE_COMMAND:docker exec -i voyager-postgres pg_restore -U voyager -d voyager --clean --if-exists --no-owner}
+
+logging:
+  level:
+    com.voyager.docs: INFO
