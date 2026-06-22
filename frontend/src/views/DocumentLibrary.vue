@@ -145,7 +145,7 @@ const uploadFolderOptions = computed(() => [
 
 const folderFilteredDocuments = computed(() => {
   const filtered = documents.value.filter((document) => {
-    if (selectedFolderId.value === 'ALL') return true
+    if (selectedFolderId.value === 'ALL') return !document.folderId
     if (selectedFolderId.value === 'UNFILED') return !document.folderId
     return document.folderId === selectedFolderId.value
   })
@@ -168,6 +168,12 @@ const visibleChildFolders = computed(() => {
   return folders.value
     .filter((folder) => (folder.parentId || null) === parentId)
     .sort((left, right) => left.name.localeCompare(right.name, 'zh-CN'))
+})
+
+const rootEntryCount = computed(() => {
+  const rootFolders = folders.value.filter((folder) => !folder.parentId).length
+  const rootDocuments = documents.value.filter((document) => !document.folderId).length
+  return rootFolders + rootDocuments
 })
 
 const metrics = computed(() => ({
@@ -233,7 +239,7 @@ const currentFolderName = computed(() => {
 })
 
 const currentFolderHint = computed(() => {
-  if (selectedFolderId.value === 'ALL') return '查看公司文档库中的所有可见文档'
+  if (selectedFolderId.value === 'ALL') return '查看根目录中的文件夹和未归档文档'
   if (selectedFolderId.value === 'UNFILED') return '尚未放入任何文件夹的文档'
   return '当前共享文件夹内的文档'
 })
@@ -785,7 +791,7 @@ function fileTypeLabel(row: DocumentItem) {
             <span class="folder-toggle-spacer" />
             <FolderOpen :size="17" />
             <span>全部文档</span>
-            <strong>{{ documents.length }}</strong>
+            <strong>{{ rootEntryCount }}</strong>
           </button>
           <button
             v-for="folder in visibleFolderRows"
